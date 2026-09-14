@@ -2,154 +2,152 @@
 #include "G4PVPlacement.hh"  
 #include "G4SubtractionSolid.hh" 
 #include "G4Cons.hh"             
+#include "G4Tubs.hh"             
 #include "G4VisAttributes.hh"    
 #include "G4Colour.hh"           
 #include "G4SDManager.hh" 
 #include "G4UserLimits.hh"
 #include "G4MultiFunctionalDetector.hh"
 #include "G4VPrimitiveScorer.hh"
-#include "G4PSTrackLength.hh"
-#include "G4MultiFunctionalDetector.hh"
 #include "G4RunManager.hh"
-
-#include "G4GeometryManager.hh"
-#include "G4PhysicalVolumeStore.hh"
-#include "G4LogicalVolumeStore.hh"
-#include "G4SolidStore.hh"
-
-#include "G4PSDoseDeposit.hh" // لحساب الجرعة الممتصة المودعة من غاما
-#include "G4PSCellFlux.hh"    // أو لحساب الفيض (تشتت الجسيمات داخل الحجم)
-#include "G4SDParticleWithEnergyFilter.hh"
+#include "G4PSDoseDeposit.hh" 
 #include "G4SDParticleFilter.hh"
-
-class MyBasicSD : public G4VSensitiveDetector {
-public:
-    MyBasicSD(G4String name) : G4VSensitiveDetector(name) {}
-    G4bool ProcessHits(G4Step* step, G4TouchableHistory*) override {
-        G4double edep = step->GetTotalEnergyDeposit();
-        return edep > 0;
-    }
-};
+#include "G4NistManager.hh"
+#include "G4Box.hh"
+#include "G4Isotope.hh"
+#include "G4Element.hh"
+#include "G4Material.hh"
 
 MyDetectorConstruction::MyDetectorConstruction()
-: logicTarget(nullptr), logicModerator(nullptr),logicFastFilter(nullptr), logicGammaFilter(nullptr), 
+: logicTarget(nullptr), logicModerator(nullptr), logicFastFilter(nullptr), logicGammaFilter(nullptr),  
   logicCollimator(nullptr), logicReflector(nullptr), logicDetector(nullptr)
-{
-    // ملاحظة: تم إزالة مؤشرات logicNickel و logicThermalFilter من هنا
-}
+{}
 
 MyDetectorConstruction::~MyDetectorConstruction()
 {}
 
 G4VPhysicalVolume *MyDetectorConstruction::Construct()
 {
-
-   
     G4NistManager *nist = G4NistManager::Instance();
 
     G4Material* vacuum = nist->FindOrBuildMaterial("G4_Galactic");
-    G4Material *Li = nist->FindOrBuildMaterial("G4_Li");
-    G4Material *aluminum = nist->FindOrBuildMaterial("G4_Al");
-   // --- تعريف غاز BF3 يدويًا لتجنب الـ nullptr ---
+    
+    // --- 1. إصلاح مادة الهدف لتكون ^7Li النقي علمياً بدلاً من G4_Li الطبيعي ---
+    G4Isotope* Li7 = new G4Isotope("Li7", 3, 7, 7.016*g/mole);
+    G4Element* elLi7 = new G4Element("Lithium-7", "Li7", 1);
+    elLi7->AddIsotope(Li7, 1.0);
+    
+    G4double liDensity = 0.534 * g/cm3; 
+    G4Material* targetLi7 = new G4Material("Target_Li7", liDensity, 1);
+    targetLi7->AddElement(elLi7, 1);
+
+    // --- تعريف غاز BF3 يدويًا ---
     G4Element* elB = nist->FindOrBuildElement("B");
     G4Element* elF = nist->FindOrBuildElement("F");
-    
-    // كثافة غاز BF3 عند الظروف القياسية تقريبًا 0.00276 g/cm3
     G4Material* BF3Gas = new G4Material("BF3Gas", 0.00276*g/cm3, 2);
-    BF3Gas->AddElement(elB, 1); // ذرة بورون واحدة
-    BF3Gas->AddElement(elF, 3); // ثلاث ذرات فلور
+    BF3Gas->AddElement(elB, 1); 
+    BF3Gas->AddElement(elF, 3); 
 
-
-    // مواد الـ BSA المتبقية والمادة الجديدة للموازئ
-    G4Material *nickel = nist->FindOrBuildMaterial("G4_Ni"); 
-    G4Material *lead = nist->FindOrBuildMaterial("G4_Pb");              
-    G4Material *bismuth = nist->FindOrBuildMaterial("G4_Bi");          
+    // مواد الـ BSA والمواصفات
+    G4Material *nickel = nist->FindOrBuildMaterial("G4_Ni");  
+    G4Material *lead = nist->FindOrBuildMaterial("G4_Pb");                 
+    G4Material *bismuth = nist->FindOrBuildMaterial("G4_Bi");             
     G4Material *MgF2 = nist->FindOrBuildMaterial("G4_MAGNESIUM_FLUORIDE");
-    G4Material *tungsten = nist->FindOrBuildMaterial("G4_W"); // إضافة التنجستن للموازئ
+    G4Material *tungsten = nist->FindOrBuildMaterial("G4_W"); 
 
     // حجم العالم (World)
-    G4double LWorld = 67*cm; 
+    G4double LWorld = 80*cm;  
     
-    // أبعاد الهدف الأصلي
-    G4double targetX = 6.*cm;     
-    G4double targetY = 6.*cm;     
+    // أبعاد الهدف (مربع 6×6 سم، أي نصف العرض 3 سم، وسمك 80 ميكرومتر)
+    G4double targetX = 3.*cm;      
+    G4double targetY = 3.*cm;      
     G4double targetZ = (80 / 2.0) *um;    
 
-    // أبعاد الـ BSA
-    G4double bsaX = 25.*cm;              
-    G4double bsaY = 25.*cm;              
+    // أبعاد الـ BSA 
+    G4double bsaX = 25.*cm;               
+    G4double bsaY = 25.*cm;               
     
-    // السماكات المتبقية (نصف الأبعاد للجينت 4) 
-   
-    G4double hzModerator = (32.0 / 2.0) * cm; 
-    G4double reflectorThickness = 25.*cm;
-    G4double hzFastFilter = (0.7 / 2.0)* cm;
-    G4double hzGammaFilter = (2.5/ 2.0)*cm;     
+    G4double hzModerator = (20.0 / 2.0) * cm;  
+    G4double reflectorThickness = 20.*cm;      
+    G4double hzFastFilter = (0.6 / 2.0)* cm;
+    G4double hzGammaFilter = (3  / 2.0)*cm;     
     G4double hzCollimator = (4 / 2.0)*cm;      
 
+    // مواصفات قناة البروتون والغلاف الرصاصي
+    G4double beamPipeRadius = 3.0 * cm;        
+    G4double pbSleeveThickness = 3.0 * cm;     
 
-    // الحساب التلقائي المحدث للمواقع على محور Z بعد حذف النيكل والكادميوم
+    // الحسابات التلقائية للمواقع على محور Z
     G4double currentZ = 0.*cm;
 
     // 1. موقع شريحة الليثيوم (Target)
     currentZ += targetZ;
     G4ThreeVector xyzTarget(0., 0., currentZ);
 
-    // 2. موقع المهدئ (MgF2) - يأتي مباشرة بعد الليثيوم
+    // 2. موقع المهدئ (MgF2)
     currentZ += targetZ + hzModerator;
     G4ThreeVector xyzModerator(0., 0., currentZ);
 
-    // 2.5 موقع مرشح النيوترونات السريعة (النيكل) - جديد
+    // 2.5 موقع مرشح النيوترونات السريعة (النيكل)
     currentZ += hzModerator + hzFastFilter;
     G4ThreeVector xyzFastFilter(0., 0., currentZ);
 
-    // 3. موقع مصفاة غاما (البزموت) - يتزحزح للأمام
+    // 3. موقع مصفاة غاما (البزموت)
     currentZ += hzFastFilter + hzGammaFilter;
     G4ThreeVector xyzGammaFilter(0., 0., currentZ);
 
-    // 4. موقع الموازئ التنجستن 
+    // 4. موقع الموازئ (التنجستن) 
     currentZ += hzGammaFilter + hzCollimator;
     G4ThreeVector xyzCollimator(0., 0., currentZ);
 
-    // 5. موقع الكاشف خلف الموازئ
-    currentZ += hzCollimator + 14.*cm; 
-    G4ThreeVector xyzDetector(0., 0., currentZ);
-  
+    // حسابات العاكس الرئيسي (بالشكل الذي اعتمدتيه ودرسِتِه)
+    G4double fullBsaLength = 2.0*hzModerator + 2.0*hzFastFilter + 2.0*hzGammaFilter + 2.0*hzCollimator;
+    G4double halfBsaLength = fullBsaLength / 2.0;
 
-	// بناء حجم العالم (World)
+    G4double bsaStartZ = xyzModerator.z() - hzModerator;
+    G4double bsaEndZ   = xyzCollimator.z() + hzCollimator;
+    G4double bsaCenterZ = 0.5 * (bsaStartZ + bsaEndZ);
+
+    G4double reflectorExtra = 1.0 * cm;
+    G4double reflectorBottomZ = (xyzTarget.z() - targetZ) - 20.0 * cm; 
+    G4double reflectorTopZ    = bsaEndZ + reflectorExtra;
+
+    G4double reflectorHalfLength = 0.5 * (reflectorTopZ - reflectorBottomZ);
+    G4double reflectorCenterZ    = 0.5 * (reflectorTopZ + reflectorBottomZ);
+
+    // بناء حجم العالم (World)
     G4Box *solidWorld = new G4Box("solidWorld", LWorld, LWorld, LWorld);
     G4LogicalVolume *logicWorld = new G4LogicalVolume(solidWorld, vacuum, "logicWorld");
     G4VPhysicalVolume *physWorld = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), logicWorld, "physWorld", 0, false, 0, true);
 
-    G4VisAttributes *worldVis = new G4VisAttributes(G4Colour(0.8, 0.8, 0.8, 0.1)); 
+    G4VisAttributes *worldVis = new G4VisAttributes(G4Colour(0.8, 0.8, 0.8, 0.05)); 
     worldVis->SetForceSolid(true); 
     logicWorld->SetVisAttributes(worldVis);
 
-    // بناء شريحة الليثيوم (Target)
+    // بناء شريحة الليثيوم (Target) - باستخدام ^7Li النقي تماماً
     G4Box *solidTarget = new G4Box("solidTarget", targetX, targetY, targetZ);
-    logicTarget = new G4LogicalVolume(solidTarget, Li, "logicTarget");
+    logicTarget = new G4LogicalVolume(solidTarget, targetLi7, "logicTarget");
     new G4PVPlacement(0, xyzTarget, logicTarget, "physTarget", logicWorld, false, 0, true);
 
-    G4VisAttributes *targetVis = new G4VisAttributes(G4Colour(1.0, 0.4, 0.0, 0.5)); 
+    G4VisAttributes *targetVis = new G4VisAttributes(G4Colour(1.0, 0.5, 0.0, 0.8)); // Orange
     targetVis->SetForceSolid(true);
     logicTarget->SetVisAttributes(targetVis);
 
-// --- بناء مرشح النيوترونات السريعة (Nickel Filter Box) ---
-   G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
-    G4LogicalVolume *logicFastFilter = new G4LogicalVolume(solidFastFilter, nickel, "logicFastFilter");
+    // --- بناء مرشح النيوترونات السريعة (Nickel Filter) ---
+    G4Box *solidFastFilter = new G4Box("solidFastFilter", bsaX, bsaY, hzFastFilter);
+    logicFastFilter = new G4LogicalVolume(solidFastFilter, nickel, "logicFastFilter");
     new G4PVPlacement(0, xyzFastFilter, logicFastFilter, "physFastFilter", logicWorld, false, 0, true);
 
-    G4VisAttributes *niVis = new G4VisAttributes(G4Colour(0.9, 0.7, 0.2, 0.5)); // لون أصفر ذهبي
+    G4VisAttributes *niVis = new G4VisAttributes(G4Colour(0.4, 0.8, 0.5, 0.5)); // Light green
     niVis->SetForceSolid(true);
     logicFastFilter->SetVisAttributes(niVis);
-////////////////////////////////////////////////////////////////////////////////////////////////////
+
     // المهدئ المربع (MgF2 Box)
     G4Box *solidModerator = new G4Box("solidModerator", bsaX, bsaY, hzModerator);
     logicModerator = new G4LogicalVolume(solidModerator, MgF2, "logicModerator");
     new G4PVPlacement(0, xyzModerator, logicModerator, "physModerator", logicWorld, false, 0, true);
-   
     
-    G4VisAttributes *modVis = new G4VisAttributes(G4Colour(0.0, 0.6, 1.0, 0.3)); 
+    G4VisAttributes *modVis = new G4VisAttributes(G4Colour(0.2, 0.5, 1.0, 0.5)); // Blue
     modVis->SetForceSolid(true);
     logicModerator->SetVisAttributes(modVis);
 
@@ -158,68 +156,140 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     logicGammaFilter = new G4LogicalVolume(solidGammaFilter, bismuth, "logicGammaFilter");
     new G4PVPlacement(0, xyzGammaFilter, logicGammaFilter, "physGammaFilter", logicWorld, false, 0, true);
 
-    G4VisAttributes *gammaVis = new G4VisAttributes(G4Colour(0.0, 0.8, 0.2, 0.4)); 
+    G4VisAttributes *gammaVis = new G4VisAttributes(G4Colour(1.0, 0.6, 0.8, 0.5)); // Pink
     gammaVis->SetForceSolid(true);
     logicGammaFilter->SetVisAttributes(gammaVis);
 
-    // الموازئ المفرغ مخروطياً - تم تعديل المادة هنا إلى التنجستن (tungsten)
+    // الموازئ المخروطي (Tungsten Collimator)
     G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", bsaX, bsaY, hzCollimator);
-    
-    G4double Rmin1_tunnel = 0.*mm;     
-    G4double Rmax1_tunnel = 18.0*cm;    
-    G4double Rmin2_tunnel = 0.*mm;     
-    G4double Rmax2_tunnel = 14.0*cm;    
+    G4double Rmin1_tunnel = 0.*mm;      
+    G4double Rmax1_tunnel = 9.0*cm;     
+    G4double Rmin2_tunnel = 0.*mm;      
+    G4double Rmax2_tunnel = 7.0*cm;     
     
     G4Cons *solidCollimatorInnerCone = new G4Cons("solidCollimatorInnerCone", Rmin1_tunnel, Rmax1_tunnel, Rmin2_tunnel, Rmax2_tunnel, hzCollimator + 1.*mm, 0.*deg, 360.*deg);
-    
     G4SubtractionSolid *solidCollimator = new G4SubtractionSolid("solidCollimator", solidCollimatorOuterBox, solidCollimatorInnerCone);
-    logicCollimator = new G4LogicalVolume(solidCollimator, tungsten, "logicCollimator"); // التنجستن هنا
+    logicCollimator = new G4LogicalVolume(solidCollimator, tungsten, "logicCollimator");
     new G4PVPlacement(0, xyzCollimator, logicCollimator, "physCollimator", logicWorld, false, 0, true);
 
-    G4VisAttributes *collVis = new G4VisAttributes(G4Colour(0.3, 0.3, 0.3, 0.6)); // تم تعديل اللون لرمادي داكن يناسب التنجستن
+    G4VisAttributes *collVis = new G4VisAttributes(G4Colour(1.0, 0.8, 0.1, 0.6)); // Yellow
     collVis->SetForceSolid(true);
     logicCollimator->SetVisAttributes(collVis);
 
-    // العاكس المربع الخارجي (Lead Reflector Box) - تم تحديث حساب الطول الإجمالي
-    G4double totalBsaLength = hzModerator + hzFastFilter + hzGammaFilter + hzCollimator;
-    G4ThreeVector xyzReflector(0., 0., xyzModerator.z() - hzModerator + totalBsaLength);
+    // =========================================================================
+    // 1. الفراغ قبل العاكس (Vacuum Beam Pipe Before Reflector) - من بداية العالم حتى بداية العاكس
+    // =========================================================================
+    G4double pipeBeforeStartZ = -LWorld;
+    G4double pipeBeforeEndZ = reflectorBottomZ;
+    G4double pipeBeforeHalfZ = (pipeBeforeEndZ - pipeBeforeStartZ) / 2.0;
+    G4double pipeBeforeCenterZ = pipeBeforeStartZ + pipeBeforeHalfZ;
+    G4ThreeVector xyzPipeBefore(0., 0., pipeBeforeCenterZ);
 
-    G4VSolid *solidOuterReflector = new G4Box("solidOuterReflector", bsaX + reflectorThickness, bsaY + reflectorThickness, totalBsaLength);
-    G4VSolid *solidInnerReflectorSpace = new G4Box("solidInnerReflectorSpace", bsaX, bsaY, totalBsaLength + 1.*mm); 
-    
-    G4SubtractionSolid *solidReflector = new G4SubtractionSolid("solidReflector", solidOuterReflector, solidInnerReflectorSpace);
+    G4Tubs *solidPipeBefore = new G4Tubs("solidPipeBefore", 0.*cm, beamPipeRadius, pipeBeforeHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPipeBefore = new G4LogicalVolume(solidPipeBefore, vacuum, "logicPipeBefore");
+    new G4PVPlacement(0, xyzPipeBefore, logicPipeBefore, "physPipeBefore", logicWorld, false, 0, true);
+
+    G4VisAttributes *pipeBeforeVis = new G4VisAttributes(G4Colour(0.6, 0.6, 0.6, 0.6)); // Gray
+    pipeBeforeVis->SetForceSolid(true);
+    logicPipeBefore->SetVisAttributes(pipeBeforeVis);
+
+    // =========================================================================
+    // 2. الفراغ داخل منطقة العاكس فقط (Vacuum Beam Pipe Inside Reflector)
+    // =========================================================================
+    G4double pipeInsideStartZ = reflectorBottomZ;
+    G4double pipeInsideEndZ = xyzTarget.z() - targetZ;
+    G4double pipeInsideHalfZ = (pipeInsideEndZ - pipeInsideStartZ) / 2.0;
+    G4double pipeInsideCenterZ = pipeInsideStartZ + pipeInsideHalfZ;
+    G4ThreeVector xyzPipeInside(0., 0., pipeInsideCenterZ);
+
+    G4Tubs *solidPipeInside = new G4Tubs("solidPipeInside", 0.*cm, beamPipeRadius, pipeInsideHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPipeInside = new G4LogicalVolume(solidPipeInside, vacuum, "logicPipeInside");
+    new G4PVPlacement(0, xyzPipeInside, logicPipeInside, "physPipeInside", logicWorld, false, 0, true);
+
+    G4VisAttributes *pipeInsideVis = new G4VisAttributes(G4Colour(0.3, 0.8, 1.0, 0.4)); // Cyan / light blue
+    pipeInsideVis->SetForceSolid(true);
+    logicPipeInside->SetVisAttributes(pipeInsideVis);
+
+    // =========================================================================
+    // 3. الغلاف الرصاصي (Pb Sleeve) - محصور حصرياً داخل منطقة العاكس فقط
+    // =========================================================================
+    G4Tubs *solidPbSleeve = new G4Tubs("solidPbSleeve", beamPipeRadius, beamPipeRadius + pbSleeveThickness, pipeInsideHalfZ, 0.*deg, 360.*deg);
+    G4LogicalVolume *logicPbSleeve = new G4LogicalVolume(solidPbSleeve, lead, "logicPbSleeve");
+    new G4PVPlacement(0, xyzPipeInside, logicPbSleeve, "physPbSleeve", logicWorld, false, 0, true);
+
+    G4VisAttributes *sleeveVis = new G4VisAttributes(G4Colour(0.3, 0.1, 0.4, 0.6)); // Dark purple
+    sleeveVis->SetForceSolid(true);
+    logicPbSleeve->SetVisAttributes(sleeveVis);
+
+    // =========================================================================
+    // 4. العاكس الرئيسي (Main Pb Reflector) ومعاملات الطرح الهندسي
+    // =========================================================================
+    G4Box *solidOuterReflector = new G4Box("solidOuterReflector", 
+                                           bsaX + reflectorThickness, 
+                                           bsaY + reflectorThickness, 
+                                           reflectorHalfLength);
+
+    G4Box *solidInnerBsaSpace = new G4Box("solidInnerBsaSpace", bsaX, bsaY, halfBsaLength + 0.1*cm); 
+    G4ThreeVector bsaSubPos(0., 0., bsaCenterZ - reflectorCenterZ);
+
+    G4double intersectStartZ = reflectorBottomZ;
+    G4double intersectEndZ = xyzTarget.z() - targetZ;
+    G4double intersectLength = intersectEndZ - intersectStartZ;
+    G4double intersectHalfZ = intersectLength / 2.0;
+    G4double intersectCenterZ = intersectStartZ + intersectHalfZ;
+
+    G4Tubs *solidBeamChannelSpace = new G4Tubs("solidBeamChannelSpace", 0.*cm, beamPipeRadius + pbSleeveThickness + 0.1*cm, intersectHalfZ + 0.1*cm, 0.*deg, 360.*deg);
+    G4ThreeVector beamChannelSubPos(0., 0., intersectCenterZ - reflectorCenterZ);
+
+    G4double targetClearance = 0.5 * cm; 
+    G4Box *solidTargetSpace = new G4Box("solidTargetSpace", 
+                                        targetX + targetClearance, 
+                                        targetY + targetClearance, 
+                                        targetZ + targetClearance);
+    G4ThreeVector targetSubPos(0., 0., xyzTarget.z() - reflectorCenterZ);
+
+    G4SubtractionSolid *interRef1 = new G4SubtractionSolid("interRef1", solidOuterReflector, solidInnerBsaSpace, 0, bsaSubPos);
+    G4SubtractionSolid *interRef2 = new G4SubtractionSolid("interRef2", interRef1, solidBeamChannelSpace, 0, beamChannelSubPos);
+    G4SubtractionSolid *solidReflector = new G4SubtractionSolid("solidReflector", interRef2, solidTargetSpace, 0, targetSubPos);
+
     logicReflector = new G4LogicalVolume(solidReflector, lead, "logicReflector");
-    new G4PVPlacement(0, xyzReflector, logicReflector, "physReflector", logicWorld, false, 0, true);
+    new G4PVPlacement(0, G4ThreeVector(0., 0., reflectorCenterZ), logicReflector, "physReflector", logicWorld, false, 0, true);
 
-    G4VisAttributes *refVis = new G4VisAttributes(G4Colour(0.7, 0.4, 0.7, 0.3)); 
+    G4VisAttributes *refVis = new G4VisAttributes(G4Colour(0.6, 0.2, 0.8, 0.3)); // Transparent purple
     refVis->SetForceSolid(true);
     logicReflector->SetVisAttributes(refVis);
 
-    // بناء كاشف الـ BF3 الأسطواني
-    G4Tubs *solidBF3Detector = new G4Tubs("solidBF3Detector", 0.*mm, 14*cm, 14.*cm, 0.*deg, 360.*deg);
+    // --- 4. بناء كاشف الـ BF3 مُلتصقاً تماماً دون أي فجوة عند مخرج الموازئ ---
+    G4double detectorRadius = 7.0 * cm;  
+    G4double detectorHalfLength = 1.0 * cm; 
+
+    G4Tubs *solidBF3Detector = new G4Tubs("solidBF3Detector", 0.*mm, detectorRadius, detectorHalfLength, 0.*deg, 360.*deg);
     logicDetector = new G4LogicalVolume(solidBF3Detector, BF3Gas, "LogicDetector");
+    
+    G4double detectorZ = xyzCollimator.z() + hzCollimator + detectorHalfLength;
+    G4ThreeVector xyzDetector(0., 0., detectorZ);
+    
     new G4PVPlacement(0, xyzDetector, logicDetector, "physDetector", logicWorld, false, 0, true);
 
-    G4VisAttributes *detVis = new G4VisAttributes(G4Colour(0.5, 0.5, 0.5, 0.5)); 
+    G4VisAttributes *detVis = new G4VisAttributes(G4Colour(0.1, 0.8, 0.3, 0.5)); // Green
     detVis->SetForceSolid(true);
     logicDetector->SetVisAttributes(detVis);
     
-    // تعريف الـ Region للهدف (Step Limit)
+    // تعريف الـ Regions والـ Step Limits
     G4Region* targetRegion = new G4Region("TargetRegion");
     targetRegion->AddRootLogicalVolume(logicTarget);
     G4UserLimits* stepLimit = new G4UserLimits(1.0 * um);
     targetRegion->SetUserLimits(stepLimit); 
 
-    // تعريف الـ Region للـ BSA (تحديث المكونات بعد الحذف)
     G4Region* bsaRegion = new G4Region("BSARegion");
     bsaRegion->AddRootLogicalVolume(logicFastFilter);
     bsaRegion->AddRootLogicalVolume(logicModerator);
     bsaRegion->AddRootLogicalVolume(logicGammaFilter);
     
-    // تعريف الـ Region للـ Reflector والموازئ
     G4Region* reflectorRegion = new G4Region("ReflectorRegion");
-    reflectorRegion->AddRootLogicalVolume(logicReflector); 
+    reflectorRegion->AddRootLogicalVolume(logicReflector);  
     reflectorRegion->AddRootLogicalVolume(logicCollimator);
+    reflectorRegion->AddRootLogicalVolume(logicPbSleeve);
   
     return physWorld;
 }
@@ -231,32 +301,27 @@ void MyDetectorConstruction::ConstructSDandField()
     MySensitiveDetector *bsaSensitiveDetector = new MySensitiveDetector("BsaSD");
     sdMan->AddNewDetector(bsaSensitiveDetector);
 
-    // ربط الكواشف مع المكونات الحالية فقط (تمت إزالة النيكل والكادميوم لحمايته من الـ Crash)
-    if(logicTarget)        logicTarget->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicFastFilter)    logicFastFilter->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicModerator)     logicModerator->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicGammaFilter)   logicGammaFilter->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicCollimator)    logicCollimator->SetSensitiveDetector(bsaSensitiveDetector);
-    if(logicReflector)     logicReflector->SetSensitiveDetector(bsaSensitiveDetector);
-    //if(logicDetector)      logicDetector->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicTarget)      logicTarget->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicFastFilter)  logicFastFilter->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicModerator)   logicModerator->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicGammaFilter) logicGammaFilter->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicCollimator)  logicCollimator->SetSensitiveDetector(bsaSensitiveDetector);
+    if(logicReflector)   logicReflector->SetSensitiveDetector(bsaSensitiveDetector);
 
-// إنشاء كاشف متعدد الوظائف خاص بجرعة غاما والنيوترونات في الكاشف
     G4MultiFunctionalDetector* detectorScorer = new G4MultiFunctionalDetector("DetectorScorer");
     sdMan->AddNewDetector(detectorScorer);
 
-    // إضافة مسجل لجرعة غاما الممتصة (Dose Deposit)
     G4VPrimitiveScorer* gammaDose = new G4PSDoseDeposit("GammaDose");
-    
-   // فلتر لاقتناص غاما فقط بناءً على نوع الجسيم
     G4SDParticleFilter* gammaFilter = new G4SDParticleFilter("gammaFilter");
-    gammaFilter->add("gamma"); // إضافة أشعة غاما للفلتر
+    gammaFilter->add("gamma");
     gammaDose->SetFilter(gammaFilter);
-    // دمج الـ Scorer مع الكاشف المتعدد الوظائف
     detectorScorer->RegisterPrimitive(gammaDose);
 
-    // ربط الـ Scorer بالحجم المنطقي لكاشف الـ BF3
-    if(logicDetector) logicDetector->SetSensitiveDetector(detectorScorer);
+    if(logicDetector) {
+        logicDetector->SetSensitiveDetector(detectorScorer);
+    }
 }
+
 
 
 
