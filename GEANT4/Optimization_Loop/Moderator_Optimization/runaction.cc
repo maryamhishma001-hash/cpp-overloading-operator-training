@@ -1,5 +1,5 @@
 #include "runaction.hh"
-#include "construction.hh" // أضف هذا السطر في أعلى الملف ليراها الـ static_cast
+#include "construction.hh"
 #include <fstream>
 #include <vector>
 #include "G4AccumulableManager.hh"
@@ -9,13 +9,12 @@
 #include "G4THitsMap.hh"
 #include "G4Event.hh"
 #include "G4AnalysisManager.hh"
-#include "G4RunManager.hh" // تأكد من وجوده أيضاً
+#include "G4RunManager.hh"
 
 MyRunAction::MyRunAction()
 {
     G4AnalysisManager* man = G4AnalysisManager::Instance();
     man->SetDefaultFileType("csv");
-    
     man->SetNtupleMerging(true);
 
     // Ntuple 0: Target
@@ -107,17 +106,13 @@ MyRunAction::~MyRunAction()
 
 void MyRunAction::BeginOfRunAction(const G4Run*)
 {
-
-// إذا أردتِ تشغيل الـ Loop التلقائي بالكامل داخل الـ Run الواحد:
-   
-    
-    
     G4AccumulableManager* accumulableManager = G4AccumulableManager::Instance();
     accumulableManager->Reset();
 
     G4AnalysisManager* man = G4AnalysisManager::Instance();
     man->OpenFile("output.csv");
 }
+
 void MyRunAction::EndOfRunAction(const G4Run* aRun)
 {
     G4AnalysisManager* man = G4AnalysisManager::Instance();
@@ -236,29 +231,25 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "6. Beam Directionality (J / Phi_epi) (IAEA Target: > 0.7)-> Value: " << directionality << G4endl;
         G4cout << "=====================================================" << G4endl;
 
-        // --- حفظ النتائج تلقائياً في ملف الـ CSV ضمن نفس البلوك لضمان رؤية المتغيرات ---
-// --- حفظ النتائج تلقائياً في ملف الـ CSV ---
+        // --- حفظ النتائج تلقائياً في ملف الـ CSV ---
         std::ifstream checkFile("moderator_sweep_summary.csv");
         bool isEmpty = !checkFile.is_open() || checkFile.peek() == std::ifstream::traits_type::eof();
         checkFile.close();
 
         std::ofstream summaryFile("moderator_sweep_summary.csv", std::ios::app);
         
-        // كتابة العنوان فقط إذا كان الملف جديداً أو فارغاً
         if (isEmpty) {
-            summaryFile << "ModeratorThickness_cm,EpiFlux_n_cm2_s,Phi_Epi_Phi_Th,D_Fast_epi,D_Gamma_epi,Directionality\n";
+            summaryFile << "ModeratorThickness,RealEpithermalFlux,RatioThermalEpi,DoseFastEpi,DoseGammaEpi,Directionality\n";
         }
 
-        auto detectorConstruction = static_cast<const MyDetectorConstruction*>(
+        const MyDetectorConstruction* detectorConstruction = static_cast<const MyDetectorConstruction*>(
             G4RunManager::GetRunManager()->GetUserDetectorConstruction()
         );
         G4double modThick_cm = detectorConstruction ? (detectorConstruction->GetModeratorThickness() / CLHEP::cm) : 0.0;
 
-        G4double ratioEpithermalThermal = (fluxThermal > 0.0) ? (realFluxEpithermal / realFluxThermal) : 0.0;
-
         summaryFile << modThick_cm << ","
                     << realFluxEpithermal << ","
-                    << ratioEpithermalThermal << ","
+                    << ratioThermalEpithermal << ","
                     << doseFastPerEpithermal << ","
                     << doseGammaPerEpithermal << ","
                     << directionality << "\n";
@@ -267,4 +258,3 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "-> Results successfully appended to moderator_sweep_summary.csv" << G4endl;
     }
 }
-
