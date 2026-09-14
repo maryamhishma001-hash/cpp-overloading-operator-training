@@ -1,0 +1,22 @@
+/control/verbose 1
+/run/verbose 1
+
+/detector/setReflectorThickness 15 cm
+/run/beamOn 1000000
+
+
+/detector/setReflectorThickness 20 cm
+/run/beamOn 1000000
+
+
+/detector/setReflectorThickness 25 cm
+/run/beamOn 1000000
+
+
+/detector/setReflectorThickness 30 cm
+/run/beamOn 1000000
+
+
+/detector/setReflectorThickness 35 cm
+/run/beamOn 1000000
+
