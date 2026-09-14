@@ -158,7 +158,7 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
     
                         G4double fastKermaFactor = 0.0;
     
-                        G4double fastKermaFactor = 0.0;
+                      
                         if (energy_MeV <= e_n.front()) { fastKermaFactor = k_n.front(); } 
                         else if (energy_MeV >= e_n.back()) { fastKermaFactor = k_n.back(); } 
                         else {
