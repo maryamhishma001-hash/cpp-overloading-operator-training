@@ -10,8 +10,7 @@
 #include "G4Event.hh"
 #include "G4AnalysisManager.hh"
 #include "G4RunManager.hh"
-////
-//
+
 MyRunAction::MyRunAction()
 {
     G4AnalysisManager* man = G4AnalysisManager::Instance();
@@ -29,20 +28,20 @@ MyRunAction::MyRunAction()
     man->FinishNtuple(0); 
 
     man->CreateNtuple("Detector", "BSA_Output_Neutrons"); 
-    man->CreateNtupleIColumn("fEvent");              
+    man->CreateNtupleIColumn("fEvent");                
     man->CreateNtupleDColumn("Energy_eV");            
     man->CreateNtupleDColumn("CosTheta");             
-    man->CreateNtupleDColumn("fX_cm");                  
-    man->CreateNtupleDColumn("fY_cm");                  
-    man->CreateNtupleDColumn("R_cm");                   
+    man->CreateNtupleDColumn("fX_cm");                    
+    man->CreateNtupleDColumn("fY_cm");                    
+    man->CreateNtupleDColumn("R_cm");                     
     man->CreateNtupleDColumn("FluxWeight");           
     man->FinishNtuple(1); 
 
     man->CreateNtuple("GammaOutput", "BSA_Output_Gamma");
-    man->CreateNtupleIColumn("fEvent");              
+    man->CreateNtupleIColumn("fEvent");                
     man->CreateNtupleDColumn("Energy_MeV");           
-    man->CreateNtupleDColumn("fX_cm");                  
-    man->CreateNtupleDColumn("fY_cm");                  
+    man->CreateNtupleDColumn("fX_cm");                    
+    man->CreateNtupleDColumn("fY_cm");                    
     man->CreateNtupleDColumn("FluxWeight");           
     man->FinishNtuple(2);
 
@@ -140,7 +139,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "=====================================================\n" << G4endl;
 
         G4cout << "\n=====================================================" << G4endl;
-        G4cout << "                    🛑 DEBUG COUNTS 🛑                     " << G4endl;
+        G4cout << "                     🛑 DEBUG COUNTS 🛑                   " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << "Weighted Thermal Surface-Flux Sum   (< 0.5 eV)   : " << masterThermalCounts << G4endl;
         G4cout << "Weighted Epithermal Surface-Flux Sum(0.5eV-10keV): " << masterEpithermalCounts << G4endl;
@@ -180,7 +179,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4cout << G4endl;
         G4cout << "=====================================================" << G4endl;
-        G4cout << "     REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT      " << G4endl;
+        G4cout << "      REAL ABSOLUTE FLUX AT 30 mA BEAM CURRENT       " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << "Real Thermal Flux            : " << realFluxThermal    << " n/cm^2.s" << G4endl;
         G4cout << "Real Epithermal Flux (BNCT)  : " << realFluxEpithermal << " n/cm^2.s" << G4endl;
@@ -198,7 +197,7 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
 
         G4cout << G4endl;
         G4cout << "=====================================================" << G4endl;
-        G4cout << "    IAEA BNCT BEAM QUALITY RECOMMENDATIONS METRIC    " << G4endl;
+        G4cout << "     IAEA BNCT BEAM QUALITY RECOMMENDATIONS METRIC   " << G4endl;
         G4cout << "=====================================================" << G4endl;
         G4cout << std::defaultfloat; 
         
@@ -250,4 +249,3 @@ void MyRunAction::EndOfRunAction(const G4Run* aRun)
         G4cout << "-> Results successfully appended to reflector_sweep_summary.csv" << G4endl;
     }
 }
-//
