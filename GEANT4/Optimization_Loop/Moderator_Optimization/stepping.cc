@@ -72,7 +72,8 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
         {
             if (volumeFrom == "physTarget" && volumeTo == "physModerator") 
             {
-                fRunAction->nTarget += 1.0;
+                // تم التعديل هنا لاستخدام العداد المنفصل للنيوترونات مع الـ weight
+                fRunAction->nNeutronsFromTarget += weight;
                 
                 man->FillNtupleIColumn(3, 0, eventID);
                 man->FillNtupleDColumn(3, 1, energy_eV);
@@ -129,13 +130,13 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
                     }
                     else if (energy_eV >= 0.5 && energy_eV <= 10000.0) {
                         fRunAction->nEpithermal += fluxWeight;            
-                        fRunAction->nCurrentEpithermal += (weight * cosTheta);            
+                        // تم التعديل هنا: اعتماد التيار على مجموع الـ weights فقط للجسيمات العابرة للأمام
+                        fRunAction->nCurrentEpithermal += weight;            
                     }
                     else if (energy_eV > 10000.0) {
                         fRunAction->nFast += fluxWeight;
 
-                       
-	        static const std::vector<G4double> e_n = {
+                        static const std::vector<G4double> e_n = {
     0.011, 0.020, 0.036, 0.063, 0.082, 0.086, 0.090, 0.094, 0.098, 0.105,
     0.115, 0.125, 0.135, 0.145, 0.155, 0.165, 0.175, 0.185, 0.195, 0.210,
     0.230, 0.250, 0.270, 0.290, 0.310, 0.330, 0.350, 0.370, 0.390, 0.420,
@@ -145,8 +146,7 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
     3.300, 3.500, 3.700, 3.900, 4.200, 4.600, 5.000, 5.400, 5.800, 6.200,
     6.600, 7.000, 7.400, 7.800, 8.200, 8.600, 9.000, 9.400, 9.800};
 
-	 
-            static const std::vector<G4double> k_n = {
+                        static const std::vector<G4double> k_n = {
     2.89e-13, 4.15e-13, 6.21e-13, 9.12e-13, 1.12e-12, 1.17e-12, 1.21e-12, 1.26e-12, 1.31e-12, 1.39e-12,
     1.51e-12, 1.63e-12, 1.75e-12, 1.87e-12, 1.98e-12, 2.10e-12, 2.21e-12, 2.32e-12, 2.43e-12, 2.59e-12,
     2.80e-12, 3.01e-12, 3.22e-12, 3.42e-12, 3.63e-12, 3.84e-12, 4.04e-12, 4.25e-12, 4.45e-12, 4.75e-12,
@@ -158,7 +158,6 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
     
                         G4double fastKermaFactor = 0.0;
     
-                      
                         if (energy_MeV <= e_n.front()) { fastKermaFactor = k_n.front(); } 
                         else if (energy_MeV >= e_n.back()) { fastKermaFactor = k_n.back(); } 
                         else {
@@ -193,12 +192,12 @@ void MySteppingAction::UserSteppingAction(const G4Step* step)
                 {
                     fRunAction->nGamma += fluxWeight;    
 
-                   static const std::vector<G4double> e_g = {
+                    static const std::vector<G4double> e_g = {
     0.010, 0.015, 0.020, 0.030, 0.040, 0.050, 0.060, 0.080, 0.100, 0.150,
     0.200, 0.300, 0.400, 0.500, 0.600, 0.800, 1.000, 1.500, 2.000, 3.000,
     4.000, 5.000, 6.000, 8.000, 10.000};
 
-               static const std::vector<G4double> k_g = {
+                    static const std::vector<G4double> k_g = {
     7.43e-12, 3.12e-12, 1.68e-12, 7.21e-13, 4.29e-13, 3.23e-13, 2.89e-13, 3.07e-13, 3.71e-13, 5.99e-13,
     8.56e-13, 1.38e-12, 1.89e-12, 2.38e-12, 2.84e-12, 3.69e-12, 4.47e-12, 6.14e-12, 7.55e-12, 9.96e-12,
     1.21e-11, 1.41e-11, 1.61e-11, 2.01e-11, 2.40e-11};
