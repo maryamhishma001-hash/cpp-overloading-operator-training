@@ -37,6 +37,11 @@ class MyRunAction : public G4UserRunAction
     G4Accumulable<G4double> dFastAccumulated = 0;
     G4Accumulable<G4double> dGammaAccumulated = 0;
 
+    
+    G4Accumulable<G4double> nNeutronsFromTarget = 0; // أضيفي هذا السطر هنا
+    
+    
+    
     G4Accumulable<G4double> nThermalFluxCount = 0; 
     G4Accumulable<G4double> nEpithermal = 0;
     G4Accumulable<G4double> nCurrentEpithermal = 0; // التيار الإبيثرمي الفعلي J_epi
