@@ -94,6 +94,7 @@ MyRunAction::MyRunAction()
     
     accumulableManager->Register(dFastAccumulated);
     accumulableManager->Register(dGammaAccumulated);
+    accumulableManager->Register(nNeutronsFromTarget); 
 
     accumulableManager->Register(nThermalFluxCount);
     accumulableManager->Register(nEpithermal);
