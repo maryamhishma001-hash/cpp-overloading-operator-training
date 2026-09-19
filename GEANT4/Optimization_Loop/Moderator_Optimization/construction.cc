@@ -61,7 +61,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4Material *MgF2 = nist->FindOrBuildMaterial("G4_MAGNESIUM_FLUORIDE");
     G4Material *tungsten = nist->FindOrBuildMaterial("G4_W"); 
 
-    G4double LWorld = 80*cm;  
+    G4double LWorld = 60*cm;  
     
     G4double targetX = 3.*cm;     
     G4double targetY = 3.*cm;     
@@ -76,7 +76,7 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
        << fModeratorThickness / cm
        << " cm ***\n" << G4endl;
        
-    G4double reflectorThickness = 25.*cm;
+    G4double reflectorThickness = 15.*cm;
     G4double hzFastFilter = (0.7 / 2.0)*cm;
     G4double hzGammaFilter = (3.0 / 2.0)*cm;
     G4double hzCollimator = (5.0 / 2.0)*cm;  
@@ -108,9 +108,14 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     G4double bsaEndZ   = xyzCollimator.z() + hzCollimator;
     G4double bsaCenterZ = 0.5 * (bsaStartZ + bsaEndZ);
 
-    G4double reflectorExtra = 1.0 * cm;
+    /*G4double reflectorExtra = 1.0 * cm;
     G4double reflectorBottomZ = (xyzTarget.z() - targetZ) - 20.0 * cm; 
-    G4double reflectorTopZ    = bsaEndZ + reflectorExtra;
+    G4double reflectorTopZ    = bsaEndZ + reflectorExtra;*/
+    
+    // Reflector ends exactly at the end of the gamma-ray filter.
+    // The collimator is completely outside the reflector.
+    G4double reflectorBottomZ = (xyzTarget.z() - targetZ) - 20.0 * cm; 
+    G4double reflectorTopZ    = xyzGammaFilter.z() + hzGammaFilter;
 
     G4double reflectorHalfLength = 0.5 * (reflectorTopZ - reflectorBottomZ);
     G4double reflectorCenterZ    = 0.5 * (reflectorTopZ + reflectorBottomZ);
@@ -155,7 +160,12 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     gammaVis->SetForceSolid(true);
     logicGammaFilter->SetVisAttributes(gammaVis);
 
-    G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", bsaX, bsaY, hzCollimator);
+    //G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", bsaX, bsaY, hzCollimator);
+    
+    G4Box *solidCollimatorOuterBox = new G4Box("solidCollimatorOuterBox", 
+                                         bsaX + 10* cm, 
+                                         bsaY + 10* cm, 
+                                         hzCollimator);
     G4double Rmin1_tunnel = 0.*mm;     
     G4double Rmax1_tunnel = 9.0*cm;     
     G4double Rmin2_tunnel = 0.*mm;     
@@ -206,14 +216,29 @@ G4VPhysicalVolume *MyDetectorConstruction::Construct()
     sleeveVis->SetForceSolid(true);
     logicPbSleeve->SetVisAttributes(sleeveVis);
 
-    G4Box *solidOuterReflector = new G4Box("solidOuterReflector", 
+    /*G4Box *solidOuterReflector = new G4Box("solidOuterReflector", 
                                             bsaX + reflectorThickness, 
                                             bsaY + reflectorThickness, 
                                             reflectorHalfLength);
 
     G4Box *solidInnerBsaSpace = new G4Box("solidInnerBsaSpace", bsaX, bsaY, halfBsaLength + 0.1*cm); 
-    G4ThreeVector bsaSubPos(0., 0., bsaCenterZ - reflectorCenterZ);
+    G4ThreeVector bsaSubPos(0., 0., bsaCenterZ - reflectorCenterZ);*/
+    
+    G4Box *solidOuterReflector = new G4Box("solidOuterReflector", 
+                                         bsaX + 10* cm, 
+                                         bsaY + 10* cm, 
+                                         reflectorHalfLength);
 
+    // Inner cavity of the reflector extends only up to the end of the gamma filter
+    G4double reflectorCavityStartZ = bsaStartZ;
+    G4double reflectorCavityEndZ   = reflectorTopZ;
+    G4double reflectorCavityHalfLength = 0.5 * (reflectorCavityEndZ - reflectorCavityStartZ);
+    G4double reflectorCavityCenterZ   = 0.5 * (reflectorCavityStartZ + reflectorCavityEndZ);
+
+    G4Box *solidInnerBsaSpace = new G4Box("solidInnerBsaSpace", bsaX, bsaY, reflectorCavityHalfLength + 0.1*cm); 
+    G4ThreeVector bsaSubPos(0., 0., reflectorCavityCenterZ - reflectorCenterZ);
+
+    ///////
     G4double intersectStartZ = reflectorBottomZ;
     G4double intersectEndZ = xyzTarget.z() - targetZ;
     G4double intersectLength = intersectEndZ - intersectStartZ;
@@ -315,5 +340,6 @@ void MyDetectorConstruction::SetModeratorThickness(G4double val)
 
     G4RunManager::GetRunManager()->GeometryHasBeenModified();
 }
+
 
 
